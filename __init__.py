@@ -6,7 +6,7 @@
 # Because it relies on some of the latest 5.0 features, this plugin is currently
 # only available for Blender 5.0 and forward.
 # Since this Version was originally for Blender 4.0, no garantee is given for the functionality.
-#Adjustments have been made through Vibecoding to make it work in Blender 5.0
+# Adjustments have been made through Vibecoding to make it work in Blender 5.0
 #
 # You are free to modify, add features or tweak this add-on as you see fit, and
 # don't hesitate to send us some feedback if you've done something cool with it.
