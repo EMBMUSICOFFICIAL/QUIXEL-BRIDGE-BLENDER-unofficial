@@ -4,13 +4,13 @@ The original Addon can be found [here](https://quixel.com/plugins).
 
 # Available Versions
 
-3.9.0
+3.9.0 for Blender 5.0
 
-3.8.0
+3.8.0 for Blender 4.0
 
-3.7.0
+3.7.0 for Blender 3.1
 
-3.5.2
+3.5.2 for Blender 2.8
 
 # Installation
 Plugin installation is part of Bridge Export Settings. These settings are global and once set up, will not need to be changed too often.  
