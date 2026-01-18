@@ -72,9 +72,9 @@ If the current installation process in Bridge isn’t suitable for your pipeline
 
 2. Extract the plugin from the .zip file.
 3. Depending on your OS, go to the “startup” folder using the paths given below
- - Windows: C:\Users\username\AppData\Roaming\Blender Foundation\Blender\2.8X\scripts\startup\
- - Mac OS: /Users/username/Library/Application Support/Blender/2.8X/scripts/startup/
- - Linux: /home/username/.config/blender/2.8X/scripts/startup/
+ - Windows: C:\Users\username\AppData\Roaming\Blender Foundation\Blender\X.X.X\scripts\startup\
+ - Mac OS: /Users/username/Library/Application Support/Blender/X.X.X/scripts/startup/
+ - Linux: /home/username/.config/blender/X.X.X/scripts/startup/
    
 5. Copy the MSPlugin folder in the startup folder.
  
@@ -92,7 +92,7 @@ If the current installation process in Bridge isn’t suitable for your pipeline
 ## Uninstallation
 1. Close Blender if running.
 2. Depending on your OS, go to the “startup” folder using the paths given below:
-- Windows: C:\Users\username\AppData\Roaming\Blender Foundation\Blender\2.8X\scripts\startup\
-- Mac OS: /Users/username/Library/Application Support/Blender/2.8X/scripts/startup/
-- Linux: /home/username/.config/blender/2.8X/scripts/startup/
+- Windows: C:\Users\username\AppData\Roaming\Blender Foundation\Blender\X.X.X\scripts\startup\
+- Mac OS: /Users/username/Library/Application Support/Blender/X.X.X/scripts/startup/
+- Linux: /home/username/.config/blender/X.X.X/scripts/startup/
 3. Delete the MSPlugin folder.
