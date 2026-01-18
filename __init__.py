@@ -3,8 +3,8 @@
 # The Megascans Plugin  plugin for Blender is an add-on that lets
 # you instantly import assets with their shader setup with one click only.
 #
-# Because it relies on some of the latest 4.0 features, this plugin is currently
-# only available for Blender 4.0 and forward.
+# Because it relies on some of the latest 5.0 features, this plugin is currently
+# only available for Blender 5.0 and forward.
 #
 # You are free to modify, add features or tweak this add-on as you see fit, and
 # don't hesitate to send us some feedback if you've done something cool with it.
@@ -14,7 +14,10 @@
 import bpy, threading, os, time, json, socket
 from bpy.app.handlers import persistent
 
-globals()['Megascans_DataSet'] = None
+import queue
+
+MEGASCANS_QUEUE = queue.Queue()
+
 
 # This stuff is for the Alembic support
 globals()['MG_Material'] = []
@@ -26,7 +29,7 @@ bl_info = {
     "description": "Connects Blender to Quixel Bridge for one-click imports with shader setup and geometry",
     "author": "Quixel",
     "version": (3, 8, 0),
-    "blender": (4, 0, 0),
+    "blender": (5, 0, 0),
     "location": "File > Import",
     "warning": "", # used for warning icon and text in addons panel
     "wiki_url": "https://docs.quixel.org/bridge/livelinks/blender/info_quickstart.html",
@@ -85,16 +88,15 @@ class MS_Init_ImportProcess():
 
                     self.NormalSetup = False
                     self.BumpSetup = False
-                    
+
                     if "workflow" in self.json_data.keys():
                         self.isSpecularWorkflow = bool(self.json_data["workflow"] == "specular")
 
                     if "applyToSelection" in self.json_data.keys():
                         self.ApplyToSelection = bool(self.json_data["applyToSelection"])
 
-                    if (self.isCycles):
-                        if(bpy.context.scene.cycles.feature_set == 'EXPERIMENTAL'):
-                            self.DisplacementSetup = 'adaptive'
+                    if self.isCycles:
+                        self.DisplacementSetup = 'adaptive'
                     
                     texturesListName = "components"
                     if(self.isBillboard):
@@ -201,9 +203,9 @@ class MS_Init_ImportProcess():
 
                     elif meshFormat.lower() == "obj":
                         if bpy.app.version < (2, 92, 0):
-                            bpy.ops.import_scene.obj(filepath=meshPath, use_split_objects = True, use_split_groups = True, global_clight_size = 1.0)
+                            bpy.ops.wm.obj_import(filepath=meshPath)
                         else:
-                            bpy.ops.import_scene.obj(filepath=meshPath, use_split_objects = True, use_split_groups = True, global_clamp_size  = 1.0)
+                            bpy.ops.wm.obj_import(filepath=meshPath)
                         # get selected objects
                         obj_objects = [ o for o in bpy.context.scene.objects if o.select_get() ]
                         self.selectedObjects += obj_objects
@@ -341,10 +343,10 @@ class MS_Init_ImportProcess():
         self.parentName = "Principled BSDF"
         self.materialOutputName = "Material Output"
 
-        self.mat.node_tree.nodes[self.parentName].distribution = 'MULTI_GGX'
+        if hasattr(self.mat.node_tree.nodes[self.parentName], "distribution"):
+            self.mat.node_tree.nodes[self.parentName].distribution = 'MULTI_GGX'
         self.mat.node_tree.nodes[self.parentName].inputs["Metallic"].default_value = 1 if self.isMetal else 0 # Metallic value
         self.mat.node_tree.nodes[self.parentName].inputs["IOR"].default_value = self.IOR
-        self.mat.node_tree.nodes[self.parentName].inputs["Specular IOR Level"].default_value = 0
         self.mat.node_tree.nodes[self.parentName].inputs["Coat Weight"].default_value = 0
         
         if "snow" in self.json_data["tags"] or "snow" in self.json_data["categories"]:
@@ -506,12 +508,13 @@ class ms_Init(threading.Thread):
             host, port = 'localhost', 28888
             #Making a socket object.
             socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            #Binding the socket to host and port number mentioned at the start.
+            socket_.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             socket_.bind((host, port))
+
+            socket_.listen(5)
 
             #Run until the thread starts receiving data.
             while run_livelink:
-                socket_.listen(5)
                 #Accept connection request.
                 client, addr = socket_.accept()
                 data = ""
@@ -537,7 +540,7 @@ class ms_Init(threading.Thread):
                         if data : self.TotalData += data
                         else:
                             #Once the data transmission is over call the importer method and send the collected TotalData.
-                            self.importer(self.TotalData)
+                            MEGASCANS_QUEUE.put(self.TotalData)
                             break
         except Exception as e:
             print( "Megascans Plugin Error initializing the thread. Error: ", str(e) )
@@ -578,26 +581,28 @@ class MS_Init_LiveLink(bpy.types.Operator):
 
         try:
             globals()['Megascans_DataSet'] = None
-            self.thread_ = threading.Thread(target = self.socketMonitor)
+            self.thread_ = threading.Thread(target=self.socketMonitor)
             self.thread_.start()
             bpy.app.timers.register(self.newDataMonitor)
             return {'FINISHED'}
         except Exception as e:
-            print( "Megascans Plugin Error starting blender plugin. Error: ", str(e) )
+            print("Megascans Plugin Error starting blender plugin. Error:", str(e))
             return {"FAILED"}
+
 
     def newDataMonitor(self):
         try:
-            if globals()['Megascans_DataSet'] != None:
+            if not MEGASCANS_QUEUE.empty():
+                data = MEGASCANS_QUEUE.get()
+                globals()['Megascans_DataSet'] = data
                 MS_Init_ImportProcess()
-                globals()['Megascans_DataSet'] = None       
         except Exception as e:
-            print( "Megascans Plugin Error starting blender plugin (newDataMonitor). Error: ", str(e) )
-            return {"FAILED"}
-        return 1.0
+            print("Megascans Timer Error:", e)
+
+        return 0.5  # run again in 0.5 seconds
 
 
-    def socketMonitor(self):
+    def socketMonitor(self): 
         try:
             #Making a thread object
             threadedServer = ms_Init(self.importer)
@@ -613,7 +618,7 @@ class MS_Init_LiveLink(bpy.types.Operator):
 
     def importer (self, recv_data):
         try:
-            globals()['Megascans_DataSet'] = recv_data
+            MEGASCANS_QUEUE.put(recv_data)
         except Exception as e:
             print( "Megascans Plugin Error starting blender plugin (importer). Error: ", str(e) )
             return {"FAILED"}
@@ -664,10 +669,12 @@ class MS_Init_Abc(bpy.types.Operator):
 
 @persistent
 def load_plugin(scene):
+    print("Megascans LiveLink starting...")
     try:
         bpy.ops.bridge.plugin()
+        print("Megascans LiveLink running")
     except Exception as e:
-        print( "Bridge Plugin Error::Could not start the plugin. Description: ", str(e) )
+        print("Megascans LiveLink FAILED:", e)
 
 def menu_func_import(self, context):
     self.layout.operator(MS_Init_Abc.bl_idname, text="Megascans: Import Alembic Files")
