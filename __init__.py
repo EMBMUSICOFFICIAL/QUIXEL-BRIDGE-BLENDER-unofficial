@@ -3,8 +3,8 @@
 # The Megascans Plugin  plugin for Blender is an add-on that lets
 # you instantly import assets with their shader setup with one click only.
 #
-# Because it relies on some of the latest 2.80 features, this plugin is currently
-# only available for Blender 2.80 and forward.
+# Because it relies on some of the latest 4.0 features, this plugin is currently
+# only available for Blender 4.0 and forward.
 #
 # You are free to modify, add features or tweak this add-on as you see fit, and
 # don't hesitate to send us some feedback if you've done something cool with it.
@@ -25,8 +25,8 @@ bl_info = {
     "name": "Megascans Plugin",
     "description": "Connects Blender to Quixel Bridge for one-click imports with shader setup and geometry",
     "author": "Quixel",
-    "version": (3, 7, 0),
-    "blender": (3, 1, 0),
+    "version": (3, 8, 0),
+    "blender": (4, 0, 0),
     "location": "File > Import",
     "warning": "", # used for warning icon and text in addons panel
     "wiki_url": "https://docs.quixel.org/bridge/livelinks/blender/info_quickstart.html",
@@ -61,8 +61,6 @@ class MS_Init_ImportProcess():
 
                     self.json_data = js
 
-                
-
                     self.selectedObjects = []
                     
                     self.IOR = 1.45
@@ -87,7 +85,7 @@ class MS_Init_ImportProcess():
 
                     self.NormalSetup = False
                     self.BumpSetup = False
-
+                    
                     if "workflow" in self.json_data.keys():
                         self.isSpecularWorkflow = bool(self.json_data["workflow"] == "specular")
 
@@ -148,7 +146,9 @@ class MS_Init_ImportProcess():
 
                     self.materialName = self.assetName + '_' + self.assetID
                     self.colorSpaces = ["sRGB", "Non-Color", "Linear"]
-
+                    
+                    print(f'Asset --> {self.assetType} -- {self.assetName}')
+                    
                     # Initialize the import method to start building our shader and import our geometry
                     self.initImportProcess()
                     print("Imported asset from " + self.assetName + " Quixel Bridge")
@@ -276,45 +276,54 @@ class MS_Init_ImportProcess():
     def SetupMaterial (self):
         if "albedo" in self.textureTypes:
             if "ao" in self.textureTypes:
-                self.CreateTextureMultiplyNode("albedo", "ao", -250, 320, -640, 460, -640, 200, 0, 1, True, "Base Color")
+                self.CreateTextureMultiplyNode("albedo", "ao", -250, 300, -650, 450, -650, 150, 0, 1, True, "Base Color")
             else:
-                self.CreateTextureNode("albedo", -640, 420, 0, True, "Base Color")
+                self.CreateTextureNode("albedo", -650, 450, 0, True, "Base Color")
         
         if self.isSpecularWorkflow:
             if "specular" in self.textureTypes:
-                self.CreateTextureNode("specular", -1150, 200, 0, True, "Specular")
+                self.CreateTextureNode("specular", -650, -1650, 0, True, "Specular IOR Level")
             
             if "gloss" in self.textureTypes:
-                glossNode = self.CreateTextureNode("gloss", -1150, -60)
-                invertNode = self.CreateGenericNode("ShaderNodeInvert", -250, 60)
+                glossNode = self.CreateTextureNode("gloss", -640, -300,)
+                invertNode = self.CreateGenericNode("ShaderNodeInvert", -250, -450)
                 # Add glossNode to invertNode connection
                 self.mat.node_tree.links.new(invertNode.inputs["Color"], glossNode.outputs["Color"])
                 # Connect roughness node to the material parent node.
                 self.mat.node_tree.links.new(self.nodes.get(self.parentName).inputs["Roughness"], invertNode.outputs["Color"])
             elif "roughness" in self.textureTypes:
-                self.CreateTextureNode("roughness", -1150, -60, 1, True, "Roughness")
+                self.CreateTextureNode("roughness", -650, -450, 1, True, "Roughness")
         else:
             if "metalness" in self.textureTypes:
-                self.CreateTextureNode("metalness", -1150, 200, 1, True, "Metallic")
+                self.CreateTextureNode("metalness", -650, -150, 1, True, "Metallic")
             
             if "roughness" in self.textureTypes:
-                self.CreateTextureNode("roughness", -1150, -60, 1, True, "Roughness")
+                self.CreateTextureNode("roughness", -650, -450, 1, True, "Roughness")
             elif "gloss" in self.textureTypes:
-                glossNode = self.CreateTextureNode("gloss", -1150, -60)
-                invertNode = self.CreateGenericNode("ShaderNodeInvert", -250, 60)
+                glossNode = self.CreateTextureNode("gloss", -650, -450,)
+                invertNode = self.CreateGenericNode("ShaderNodeInvert", -250, -450)
                 # Add glossNode to invertNode connection
                 self.mat.node_tree.links.new(invertNode.inputs["Color"], glossNode.outputs["Color"])
                 # Connect roughness node to the material parent node.
                 self.mat.node_tree.links.new(self.nodes.get(self.parentName).inputs["Roughness"], invertNode.outputs["Color"])
             
         if "opacity" in self.textureTypes:
-            self.CreateTextureNode("opacity", -1550, -160, 1, True, "Alpha")
+            self.CreateTextureNode("opacity", -650, -750, 1, True, "Alpha")
             self.mat.blend_method = 'HASHED'
+        
+        if "snow" in self.json_data["tags"] or "snow" in self.json_data["categories"]:
+            if "transmission" in self.textureTypes:
+                #print(f'Snow Asset --> {"snow" in self.json_data["tags"]} | {"snow" in self.json_data["categories"]} | Transmission: {"transmission" in self.textureTypes}')
+                self.CreateTextureIntensityNode(-250, -1950, "transmission", True, "Transmission Weight", 'MULTIPLY', Value2 = 0.25)
+            elif "translucency" in self.textureTypes:
+                #print(f'Snow Asset --> {"snow" in self.json_data["tags"]} | {"snow" in self.json_data["categories"]} | Translucency: {"translucency" in self.textureTypes}')
+                self.CreateTextureIntensityNode(-250, -1950, "translucency", True, "Transmission Weight", 'MULTIPLY', Value2 = 0.25)
 
-        if "translucency" in self.textureTypes:
-            self.CreateTextureNode("translucency", -1550, -420, 0, True, "Transmission")
+        elif "translucency" in self.textureTypes:
+            self.CreateTextureNode("translucency", -650, -1950, 0, True, "Transmission Weight")
+                
         elif "transmission" in self.textureTypes:
-            self.CreateTextureNode("transmission", -1550, -420, 1, True, "Transmission")
+            self.CreateTextureNode("transmission", -650, -1950, 1, True, "Transmission Weight")
 
         # If HIGH POLY selected > use normal_bump and no displacement
         # If LODs selected > use corresponding LODs normal + displacement
@@ -335,18 +344,22 @@ class MS_Init_ImportProcess():
         self.mat.node_tree.nodes[self.parentName].distribution = 'MULTI_GGX'
         self.mat.node_tree.nodes[self.parentName].inputs["Metallic"].default_value = 1 if self.isMetal else 0 # Metallic value
         self.mat.node_tree.nodes[self.parentName].inputs["IOR"].default_value = self.IOR
-        self.mat.node_tree.nodes[self.parentName].inputs["Specular"].default_value = 0
-        self.mat.node_tree.nodes[self.parentName].inputs["Clearcoat"].default_value = 0
+        self.mat.node_tree.nodes[self.parentName].inputs["Specular IOR Level"].default_value = 0
+        self.mat.node_tree.nodes[self.parentName].inputs["Coat Weight"].default_value = 0
         
+        if "snow" in self.json_data["tags"] or "snow" in self.json_data["categories"]:
+            self.mat.node_tree.nodes[self.parentName].subsurface_method = 'RANDOM_WALK'
+            self.mat.node_tree.nodes[self.parentName].inputs["Subsurface Radius"].default_value = (0.4, 0.5, 0.6)
+            self.mat.node_tree.nodes[self.parentName].inputs["Subsurface Scale"].default_value = (0.1)        
         
         self.mappingNode = None
 
         if self.isCycles and self.assetType not in ["3d", "3dplant"]:
             # Create mapping node.
-            self.mappingNode = self.CreateGenericNode("ShaderNodeMapping", -1950, 0)
+            self.mappingNode = self.CreateGenericNode("ShaderNodeMapping", -1350, -900)
             self.mappingNode.vector_type = 'TEXTURE'
             # Create texture coordinate node.
-            texCoordNode = self.CreateGenericNode("ShaderNodeTexCoord", -2150, -200)
+            texCoordNode = self.CreateGenericNode("ShaderNodeTexCoord", -1700, -900)
             # Connect texCoordNode to the mappingNode
             self.mat.node_tree.links.new(self.mappingNode.inputs["Vector"], texCoordNode.outputs["UV"])
 
@@ -367,6 +380,19 @@ class MS_Init_ImportProcess():
         if self.isCycles and self.assetType not in ["3d", "3dplant"]:
             self.mat.node_tree.links.new(textureNode.inputs["Vector"], self.mappingNode.outputs["Vector"])
         return textureNode
+    
+    
+    def CreateTextureIntensityNode(self, PosX, PosY, textureType, connectToMaterial, materialInputIndex, Operation = 'ADD', Value1 = 0.5, Value2 = 0.5):
+        trnsmTex_node = self.CreateTextureNode(textureType, -650, -1950, 1)
+        mathNode = self.CreateGenericNode('ShaderNodeMath', PosX, PosY)
+        mathNode.operation = Operation
+        mathNode.inputs[0].default_value = Value1
+        mathNode.inputs[1].default_value = Value2
+        self.mat.node_tree.links.new(mathNode.inputs[0], trnsmTex_node.outputs["Color"])
+        if connectToMaterial:
+            self.ConnectNodeToMaterial(materialInputIndex, mathNode)
+        self.ConnectNodeToMaterial("Subsurface Weight", trnsmTex_node)
+        
 
     def CreateTextureMultiplyNode(self, aTextureType, bTextureType, PosX, PosY, aPosX, aPosY, bPosX, bPosY, aColorspace, bColorspace, connectToMaterial, materialInputIndex):
         #Add Color>MixRGB node, transform it in the node editor, change it's operation to Multiply and finally we colapse the node.
@@ -392,11 +418,11 @@ class MS_Init_ImportProcess():
         normalMapNode = None
 
         if self.NormalSetup and self.BumpSetup:
-            bumpMapNode = self.CreateTextureNode("bump", -640, -130)
-            normalMapNode = self.CreateTextureNode("normal", -1150, -580)
-            bumpNode = self.CreateGenericNode("ShaderNodeBump", -250, -170)
+            bumpMapNode = self.CreateTextureNode("bump", -650, -1050)
+            normalMapNode = self.CreateTextureNode("normal", -650, -1350)
+            bumpNode = self.CreateGenericNode("ShaderNodeBump", -250, -1050)
             bumpNode.inputs["Strength"].default_value = 0.1
-            normalNode = self.CreateGenericNode("ShaderNodeNormalMap", -640, -400)
+            normalNode = self.CreateGenericNode("ShaderNodeNormalMap", -250, -1350)
             # Add normalMapNode to normalNode connection
             self.mat.node_tree.links.new(normalNode.inputs["Color"], normalMapNode.outputs["Color"])
             # Add bumpMapNode and normalNode connection to the bumpNode
@@ -409,16 +435,16 @@ class MS_Init_ImportProcess():
             if connectToMaterial:
                 self.ConnectNodeToMaterial(materialInputIndex, bumpNode)
         elif self.NormalSetup:
-            normalMapNode = self.CreateTextureNode("normal", -640, -207)
-            normalNode = self.CreateGenericNode("ShaderNodeNormalMap", -250, -170)
+            normalMapNode = self.CreateTextureNode("normal", -650, -1350)
+            normalNode = self.CreateGenericNode("ShaderNodeNormalMap", -250, -1350)
             # Add normalMapNode to normalNode connection
             self.mat.node_tree.links.new(normalNode.inputs["Color"], normalMapNode.outputs["Color"])
             # Add normalNode connection to the material parent node
             if connectToMaterial:
                 self.ConnectNodeToMaterial(materialInputIndex, normalNode)
         elif self.BumpSetup:
-            bumpMapNode = self.CreateTextureNode("bump", -640, -207)
-            bumpNode = self.CreateGenericNode("ShaderNodeBump", -250, -170)
+            bumpMapNode = self.CreateTextureNode("bump", -650, -1050)
+            bumpNode = self.CreateGenericNode("ShaderNodeBump", -250, -1050)
             bumpNode.inputs["Strength"].default_value = 0.1
             # Add bumpMapNode and normalNode connection to the bumpNode
             self.mat.node_tree.links.new(bumpNode.inputs["Height"], bumpMapNode.outputs["Color"])
@@ -429,13 +455,13 @@ class MS_Init_ImportProcess():
     def CreateDisplacementSetup(self, connectToMaterial):
         if self.DisplacementSetup == "adaptive":
             # Add vector>displacement map node
-            displacementNode = self.CreateGenericNode("ShaderNodeDisplacement", 10, -400)
+            displacementNode = self.CreateGenericNode("ShaderNodeDisplacement", 100, -2250)
             displacementNode.inputs["Scale"].default_value = 0.1
             displacementNode.inputs["Midlevel"].default_value = 0
             # Add converter>RGB Separator node
-            RGBSplitterNode = self.CreateGenericNode("ShaderNodeSeparateRGB", -250, -499)
+            RGBSplitterNode = self.CreateGenericNode("ShaderNodeSeparateRGB", -250, -2250)
             # Import normal map and normal map node setup.
-            displacementMapNode = self.CreateTextureNode("displacement", -640, -740)
+            displacementMapNode = self.CreateTextureNode("displacement", -650, -2250)
             # Add displacementMapNode to RGBSplitterNode connection
             self.mat.node_tree.links.new(RGBSplitterNode.inputs["Image"], displacementMapNode.outputs["Color"])
             # Add RGBSplitterNode to displacementNode connection
