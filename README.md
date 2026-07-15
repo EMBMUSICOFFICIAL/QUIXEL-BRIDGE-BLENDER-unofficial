@@ -2,7 +2,8 @@
 An adjusted version of the Bridge addon to receive all assets in Blender without manually exporting and importing.
 The original Addon can be found [here](https://quixel.com/plugins).
 
-# Available Versions
+# Version Compability
+<img width="2016" height="424" alt="Frame 2609893" src="https://github.com/user-attachments/assets/e893f3fd-da3d-42f3-8785-1b5829cece42" />
 
 [3.9.0 for Blender 5.0](https://github.com/EMBMUSICOFFICIAL/QUIXEL-BRIDGE-BLENDER-unofficial/releases/tag/v3.9.0)
 
